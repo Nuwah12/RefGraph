@@ -6,24 +6,24 @@ from pyvis.network import Network
 from alive_progress import alive_bar
 
 class EuroPMCRefGraph():
-    def __init__(self, keyword, nPages):
+    def __init__(self, keyword, nPages=1):
         self.keyword = keyword
         self.n_pages = nPages
 
         pmids = []
         with alive_bar(self.n_pages, force_tty=True) as bar:
-            for i in range(1, self.n_pages):
+            for i in range(0, self.n_pages):
                 res = self.get_papers(keyword, pages=i, perPage=100)
                 pmids.append(res)
                 bar()
             pmids = list(set(sum(pmids, [])))
 
-        citation_dict = self.get_citation_dict(pmids)
+        self.citation_dict = self.get_citation_dict(pmids)
 
-        dg = nx.DiGraph(citation_dict)
+        self.dg = nx.DiGraph(self.citation_dict)
 
-        dg = self.remove_uninformative(dg)
-        dg = self.remove_orphans(dg)
+        self.dg = self.remove_uninformative(self.dg)
+        self.dg = self.remove_orphans(self.dg)
 
     def remove_uninformative(self, graph):
         nodes_to_remove = [node for node in graph.nodes() if graph.out_degree(node) == 0 and graph.in_degree(node) == 1]
