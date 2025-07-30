@@ -1,103 +1,109 @@
-from dash import Dash, html, dcc, Output, Input, State # Dash imports
+import dash
+from dash import dcc, html, Input, Output, State
 import dash_cytoscape as cyto
 import networkx as nx
+import traceback
 import sys
-sys.path.append("./src")
-from EuroPMCRefGraph import EuroPMCRefGraph as EuroPMC 
 
-app = Dash(__name__)
+sys.path.append("./src")
+from OpenAlexRefGraph import OpenAlexRefGraph  # make sure this is error-free
+
+app = dash.Dash(__name__)
 cyto.load_extra_layouts()
 
-def build_graph(keyword: str) -> nx.Graph:
-    """
-    Build the networkx graph
-    Parameters:
-        keyword (str): the keyword to build the graph around
-    """
-    obj = EuroPMC(keyword)
-    G = obj.dg
-
-    ### TODO: 
-    # - Call function to scrape metadata and store it like below
-    nx.set_node_attributes(G, {n: f"{keyword}_{n}" for n in G.nodes()}, "label")
-    return G
-
-def nx_to_cytoscape(G: nx.DiGraph):
-    """
-    Converts the networkx graph to cytoscape ready ds
-    Parameters:
-        G (nx.Graph): The graph
-    """
-    return (
-        [
-            {"data": {"id": str(n), "label": G.nodes[n].get("label", str(n))}}
-            for n in G.nodes()
-        ]
-        + [
-            {"data": {"source": str(u), "target": str(v)}}
-            for u, v in G.edges()
-        ]
-    )
-
-##########
-# The Dash app layout
 app.layout = html.Div([
-    html.H1("RefGraph"),
-    dcc.Input(id='keyword-input', type='text', placeholder='Enter keyword'),
-    html.Button("Search", id='submit-button', n_clicks=0),
-    html.Div(id='graph-title'),
-    dcc.Loading(
-        cyto.Cytoscape(
-            id='citation-network',
-            layout={'name': 'cola',
-                    'animate': True},
-            style={'width': '100%', 'height': '800px'},
-            elements=[],
-            stylesheet=[
-                {
-                    'selector': 'node',
-                    'style': {
-                        'label': 'data(label)',
-                        'width': 30,
-                        'height': 30,
-                        'background-color': '#0074D9',
-                        'color': 'black',
-                        'text-valign': 'center',
-                        'text-halign': 'center',
-                    }
-                },
-                {
-                    'selector': 'edge',
-                    'style': {
-                        'width': 2,
-                        'line-color': '#888',
-                        'target-arrow-color': '#888',
-                        'target-arrow-shape': 'triangle',
-                        'arrow-scale': 1.5,
-                        'curve-style': 'bezier'  # allows arcs with arrowheads
-                    }
-                }
-            ]
-        )
+    html.H1("Citation Graph Builder"),
 
-    )
+    dcc.Input(
+        id='doi-input',
+        type='text',
+        placeholder='Enter DOI...',
+        debounce=True,
+        style={'width': '50%'}
+    ),
+    html.Button('Build Graph', id='build-button', n_clicks=0),
+
+    cyto.Cytoscape(
+        id='cytoscape-graph',
+        layout={'name': 'cose', 'animate': True, 'nodeRepulsion': 500, 'idealEdgeLength': 200},
+        style={'width': '100%', 'height': '600px'},
+        elements=[],
+        stylesheet=[
+            {'selector': 'node', 'style': {'label': 'data(label)', 'color': 'black'}},
+            {'selector': 'edge', 'style': {'curve-style': 'bezier', 'target-arrow-shape': 'triangle'}}
+        ]
+    ),
+    html.Div(id='node-info', style={"marginTop": "10px", "whiteSpace": "pre-line"})
 ])
 
 @app.callback(
-    Output('citation-network', 'elements'),
-    Output('graph-title', 'children'),
-    Input('submit-button', 'n_clicks'),
-    State('keyword-input', 'value'),
-    prevent_initial_call=True,
+    Output('cytoscape-graph', 'elements'),
+    Input('build-button', 'n_clicks'),
+    State('doi-input', 'value')
 )
-def update_graph(n_clicks, keyword):
-    """
-    Callback function to update the graph when a keyword is entered and the submit button is clicked
-    """
-    if not keyword:
-        return [], "Please enter a keyword."
-    G = build_graph(keyword)
-    return nx_to_cytoscape(G), f"Graph for '{keyword}'"
+def update_graph(n_clicks, doi_input):
+    if not doi_input:
+        return []
+
+    try:
+        print(f"Building graph for DOI: {doi_input}")
+        refgraph = OpenAlexRefGraph(doi_input, max_nodes=10)
+
+        G = getattr(refgraph, "G", getattr(refgraph, "refg", None))
+        metadata = getattr(refgraph, "metadata", getattr(refgraph, "md", {}))
+
+        if not G or len(G.nodes) == 0:
+            print("Graph is empty.")
+            return []
+
+        # Compute citation count (out-degree) and normalize for color scale
+        max_citations = max((G.out_degree(n) for n in G.nodes), default=1)
+
+        elements = []
+        for node in G.nodes():
+            meta = metadata.get(node, {})
+            title = meta.get("title", node)
+            year = meta.get("year", "N/A")
+            citations = G.out_degree(node)
+            color_intensity = int(255 * citations / max_citations)
+            color = f"rgb({color_intensity}, {255 - color_intensity}, 150)"  # red→green scale
+
+            elements.append({
+                'data': {
+                    'id': node,
+                    'label': title[:50] if title else node[:12],
+                    'year': year,
+                    'citations': citations
+                },
+                'style': {
+                    'background-color': color,
+                    'width': 30,
+                    'height': 30
+                }
+            })
+
+        for u, v in G.edges():
+            elements.append({
+                'data': {'source': u, 'target': v}
+            })
+
+        print(f"Generated graph with {len(G.nodes)} nodes and {len(G.edges)} edges.")
+        return elements
+
+    except Exception as e:
+        print("Exception occurred during graph build:")
+        traceback.print_exc()
+        return [{'data': {'id': 'error', 'label': 'Graph build failed'}}]
+
+
+@app.callback(
+    Output('node-info', 'children'),
+    Input('cytoscape-graph', 'mouseoverNodeData')
+)
+def display_node_info(data):
+    if data:
+        return f"Title: {data.get('label', '')}\nYear: {data.get('year', 'N/A')}"
+    return "Hover over a node to see info."
 
 if __name__ == '__main__':
     app.run_server(debug=True)
