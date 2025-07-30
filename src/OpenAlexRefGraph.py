@@ -21,6 +21,15 @@ class OpenAlexRefGraph():
         references = work.get('referenced_works')
         return references
 
+    def _retrieve_metadata(self, doi):
+        work = pyalex.Works()[doi]
+        return {
+                'title': work.get('title'),
+                'year': work.get('publication_year'),
+                'authorships': work.get('authorships'),
+                'journal': work.get('host_venue', {}).get('display_name'),
+            }
+
     def get_metadata(self, G, delay) -> List[dict]:
         """
         Fetch metadata for the completed graph.
@@ -28,9 +37,9 @@ class OpenAlexRefGraph():
             - G (nx.DiGraph): the graph
             - delay (int): delay api calls
         """
-        metadata = []
+        metadata = {}
         for i in G.nodes:
-            metadata[i] = get_metadata(i)
+            metadata[i] = self._retrieve_metadata(i)
             time.sleep(delay)
         return metadata
 
