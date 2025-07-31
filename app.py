@@ -21,11 +21,18 @@ app.layout = html.Div([
         debounce=True,
         style={'width': '50%'}
     ),
+    dcc.Input(
+        id='max-nodes',
+        type='number',
+        placeholder='Max nodes',
+        debounce=True,
+        style={'width': '7%'}
+    ),
     html.Button('Build Graph', id='build-button', n_clicks=0),
 
     cyto.Cytoscape(
         id='cytoscape-graph',
-        layout={'name': 'cose', 'animate': True, 'nodeRepulsion': 500, 'idealEdgeLength': 200},
+        layout={'name': 'breadthfirst', 'animate': True, 'nodeRepulsion': 5000, 'idealEdgeLength': 10},
         style={'width': '100%', 'height': '600px'},
         elements=[],
         stylesheet=[
@@ -39,18 +46,19 @@ app.layout = html.Div([
 @app.callback(
     Output('cytoscape-graph', 'elements'),
     Input('build-button', 'n_clicks'),
+    Input('max-nodes', 'value'),
     State('doi-input', 'value')
 )
-def update_graph(n_clicks, doi_input):
+def update_graph(n_clicks, max_nodes, doi_input):
     if not doi_input:
         return []
 
     try:
         print(f"Building graph for DOI: {doi_input}")
-        refgraph = OpenAlexRefGraph(doi_input, max_nodes=10)
+        refgraph = OpenAlexRefGraph(doi_input, max_nodes=max_nodes)
 
-        G = getattr(refgraph, "G", getattr(refgraph, "refg", None))
-        metadata = getattr(refgraph, "metadata", getattr(refgraph, "md", {}))
+        G = refgraph.refg
+        metadata = refgraph.md
 
         if not G or len(G.nodes) == 0:
             print("Graph is empty.")
@@ -65,8 +73,6 @@ def update_graph(n_clicks, doi_input):
             title = meta.get("title", node)
             year = meta.get("year", "N/A")
             citations = G.out_degree(node)
-            color_intensity = int(255 * citations / max_citations)
-            color = f"rgb({color_intensity}, {255 - color_intensity}, 150)"  # red→green scale
 
             elements.append({
                 'data': {
@@ -76,7 +82,6 @@ def update_graph(n_clicks, doi_input):
                     'citations': citations
                 },
                 'style': {
-                    'background-color': color,
                     'width': 30,
                     'height': 30
                 }

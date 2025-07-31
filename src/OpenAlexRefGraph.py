@@ -14,7 +14,7 @@ class OpenAlexRefGraph():
             - delay (int/double): time to sleep between OpenAlex api calls to avoid throttling
             - max_nodes(int): maximum number of nodes to be considered in final graph
         """
-        self.refg = self.build_backward_graph(seed, max_depth=depth, delay=delay, max_nodes=max_nodes)
+        self.refg, self.md = self.build_backward_graph(seed, max_depth=depth, delay=delay, max_nodes=max_nodes)
 
     def get_references(self, doi):
         work = pyalex.Works()[doi]
