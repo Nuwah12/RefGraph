@@ -15,3 +15,4 @@
                                  | |          
                                  |_|
 ```
+![example image](img/bfs_refgraph_openalex.png)
