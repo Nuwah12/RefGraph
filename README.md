@@ -1,7 +1,9 @@
-### Modules
-Each module pulls citation information from a different data source. The currently availble modules are: \
- *  `EuroPMCRefGraph`: Uses the [Europe PMC Database](https://europepmc.org/)
- * `AlexRefGraph`: Uses the [OpenAlex Database](https://openalex.org/), implemented with [pyalex](https://github.com/J535D165/pyalex) (COMING SOON)
+### Getting Started  
+* Install all dependencies via `pip install -r requirements.txt`
+* Start the app with `python app.py`
+* Navigate to `127.0.0.1:8050` in your browser 
+
+### Usage 
 ***
 ```
   _____       __  _____                 _     
@@ -13,4 +15,3 @@ Each module pulls citation information from a different data source. The current
                                  | |          
                                  |_|
 ```
-<img src="./img/ex_refGraph2.png" width="700" height="500">
