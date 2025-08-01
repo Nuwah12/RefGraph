@@ -52,26 +52,26 @@ class OpenAlexRefGraph():
         queue = [(seed_doi, 0)]
         metadata = {}
         
-        while queue:
-            doi, depth = queue.pop(0)
-            if doi in visited or depth > max_depth:
+        while queue: # while the queue has items
+            doi, depth = queue.pop(0) # pop from the front of the queue
+            if doi in visited or depth > max_depth: # if the paper is already in the visited set or we have gone beyond max depth we do not add this paper
                 continue
             print(len(visited))
-            if len(visited) >= max_nodes:
+            if len(visited) >= max_nodes: # place a hard limit on the amount of content in the graph; might want to change this if theres a way to make this faster
                 break
-            visited.add(doi)
+            visited.add(doi) # add the paper to the set
     
             try:
-                refs = self.get_references(doi)
+                refs = self.get_references(doi) # get all references for the current paper
             except Exception as e:
                 print(f"Failed on {doi}: {e}")
                 continue
     #
-            for ref in refs:
+            for ref in refs: # loop through all references
                 #print(ref)
-                G.add_edge(doi, ref)
+                G.add_edge(doi, ref) # add an edge (which also implicitly adds a node for ref)
                 #print(f"Edge added from {doi} to {ref}")
-                queue.append((ref, depth + 1))
+                queue.append((ref, depth + 1)) # add the ref to the queue at a new level
     
             time.sleep(delay)  # avoid rate limiting
         
