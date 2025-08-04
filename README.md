@@ -1,4 +1,5 @@
 ### Launching the App 
+* Clone this repository via `git clone https://github.com/Nuwah12/RefGraph`
 * Install all dependencies via `pip install -r requirements.txt`
 * Start the app with `python app.py`
 * Navigate to `127.0.0.1:8050` in your browser 
