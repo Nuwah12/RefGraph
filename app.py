@@ -11,37 +11,50 @@ from OpenAlexRefGraph import OpenAlexRefGraph  # make sure this is error-free
 app = dash.Dash(__name__)
 cyto.load_extra_layouts()
 
-app.layout = html.Div([
-    html.H1("Citation Graph Builder"),
+app.layout = html.Div(style={'fontFamily': 'Arial, sans-serif', 'padding': '20px', 'backgroundColor': '#eceff4'}, 
+                      children=[
+                html.H1("Citation Graph Builder"),
 
-    dcc.Input(
-        id='doi-input',
-        type='text',
-        placeholder='Enter DOI...',
-        debounce=True,
-        style={'width': '50%'}
-    ),
-    dcc.Input(
-        id='max-nodes',
-        type='number',
-        placeholder='Max nodes',
-        debounce=True,
-        style={'width': '7%'}
-    ),
-    html.Button('Build Graph', id='build-button', n_clicks=0),
+                html.Div(
+                    dcc.Input(
+                        id='doi-input',
+                        type='text',
+                        placeholder='Enter DOI...',
+                        debounce=True,
+                        style={'width': '50%'}
+                    ),
+                    style={'marginBottom': '15px'}
+                ),
+                html.Div(
+                    dcc.Input(
+                        id='max-nodes',
+                        type='number',
+                        placeholder='Max nodes',
+                        debounce=True,
+                        style={'width': '7%'}
+                    ),
+                    style={'marginBottom': '15px'}
+                ),
+                html.Button('Build Graph', id='build-button', n_clicks=0),
 
-    cyto.Cytoscape(
-        id='cytoscape-graph',
-        layout={'name': 'breadthfirst', 'animate': True, 'nodeRepulsion': 5000, 'idealEdgeLength': 10},
-        style={'width': '100%', 'height': '600px'},
-        elements=[],
-        stylesheet=[
-            {'selector': 'node', 'style': {'label': 'data(label)', 'color': 'black'}},
-            {'selector': 'edge', 'style': {'curve-style': 'bezier', 'target-arrow-shape': 'triangle'}}
-        ]
-    ),
-    html.Div(id='node-info', style={"marginTop": "10px", "whiteSpace": "pre-line"})
-])
+                cyto.Cytoscape(
+                    id='cytoscape-graph',
+                    layout={'name': 'preset', 
+                            'animate': True},
+                    zoom=1,                # initial zoom level
+                    minZoom=0.5,           # minimum allowed zoom level
+                    maxZoom=2,             # maximum allowed zoom level
+                    pan={'x': 0, 'y': 0},  # initial pan position
+                    style={'width': '100%', 'height': '600px'},
+                    elements=[],
+                    stylesheet=[
+                        {'selector': 'node', 'style': {'label': 'data(label)', 'color': 'black'}},
+                        {'selector': 'edge', 'style': {'curve-style': 'bezier', 'target-arrow-shape': 'triangle'}}
+                    ]
+                ),
+                html.Div(id='node-info', style={"marginTop": "10px", "whiteSpace": "pre-line"})
+            ]
+    )
 
 @app.callback(
     Output('cytoscape-graph', 'elements'),
@@ -59,33 +72,47 @@ def update_graph(n_clicks, max_nodes, doi_input):
 
         G = refgraph.refg
         metadata = refgraph.md
+        depth_map = refgraph.dm
 
         if not G or len(G.nodes) == 0:
             print("Graph is empty.")
             return []
 
-        # Compute citation count (out-degree) and normalize for color scale
-        max_citations = max((G.out_degree(n) for n in G.nodes), default=1)
-
+        sorted_nodes = sorted(G.nodes(), key=lambda n: G.nodes[n].get('year', float('inf')))
         elements = []
-        for node in G.nodes():
+        print(depth_map)
+        for i, node in enumerate(sorted_nodes):
+            print(node)
             meta = metadata.get(node, {})
-            title = meta.get("title", node)
-            year = meta.get("year", "N/A")
+            title = meta.get('title', node)
+            year = meta.get('year', 'N/A')
+            url = meta.get('url', 'N/A')
             citations = G.out_degree(node)
+
+            label = (title[:60] + '...') if title and len(title) > 60 else (title or node)
+
+            # X = depth level + small horizontal offset
+            x = depth_map.get(node) * 3000 + (i % 3) * 500
+
+            # Y = based on year (more recent = higher)
+            y = -(year - 1950) * 100 if year else i * 600  # fallback if year missing
+
 
             elements.append({
                 'data': {
                     'id': node,
-                    'label': title[:50] if title else node[:12],
+                    'title': title,
+                    'label': label,
                     'year': year,
-                    'citations': citations
+                    'citations': citations,
+                    'url': url
                 },
-                'style': {
-                    'width': 30,
-                    'height': 30
+                'position': {
+                    'x': x,
+                    'y': y
                 }
             })
+
 
         for u, v in G.edges():
             elements.append({
@@ -107,7 +134,7 @@ def update_graph(n_clicks, max_nodes, doi_input):
 )
 def display_node_info(data):
     if data:
-        return f"Title: {data.get('label', '')}\nYear: {data.get('year', 'N/A')}"
+        return f"Title: {data.get('title', '')}\nYear: {data.get('year', 'N/A')}\nLink: {data.get('url')}"
     return "Hover over a node to see info."
 
 if __name__ == '__main__':
