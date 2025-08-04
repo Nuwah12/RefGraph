@@ -6,7 +6,8 @@
 ### Usage 
 Paste a full DOI URL into the first box and a hard upper limit in the number of nodes to be incuded in the graph, as such: 
 
-![example input](img/refgraph_input_ex_080325.png)
+![example input](img/refgraph_input_ex_080325.png) \
+then, simply click the `Build Graph` button. Due to rate limitations of the OpenAlex API, construction of a graph this size may take approximately 1.5 minutes.
 ***
 ```
   _____       __  _____                 _     
