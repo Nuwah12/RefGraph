@@ -1,9 +1,11 @@
-### Getting Started  
+### Launching the App 
 * Install all dependencies via `pip install -r requirements.txt`
 * Start the app with `python app.py`
 * Navigate to `127.0.0.1:8050` in your browser 
 
 ### Usage 
+Paste a full DOI URL into the first box and a hard upper limit in the number of nodes to be incuded in the graph, as such:
+![example input](img/refgraph_input_ex_080325.png)
 ***
 ```
   _____       __  _____                 _     
